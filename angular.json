@@ -90,10 +90,10 @@
                     "builder": "@angular-devkit/build-angular:dev-server",
                     "configurations": {
                         "production": {
-                            "browserTarget": "coin-radar:build:production"
+                          "buildTarget": "coin-radar:build:production"
                         },
                         "development": {
-                            "browserTarget": "coin-radar:build:development"
+                          "buildTarget": "coin-radar:build:development"
                         }
                     },
                     "defaultConfiguration": "development"
@@ -101,7 +101,7 @@
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n",
                     "options": {
-                        "browserTarget": "coin-radar:build"
+                      "buildTarget": "coin-radar:build"
                     }
                 },
                 "test": {
