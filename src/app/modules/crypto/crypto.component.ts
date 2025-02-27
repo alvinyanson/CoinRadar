@@ -1,4 +1,12 @@
 import {
+    CurrencyPipe,
+    DecimalPipe,
+    NgClass,
+    NgFor,
+    NgIf,
+    UpperCasePipe,
+} from '@angular/common';
+import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
@@ -7,19 +15,6 @@ import {
     ViewChild,
     ViewEncapsulation,
 } from '@angular/core';
-import {
-    CurrencyPipe,
-    DecimalPipe,
-    NgClass,
-    NgFor,
-    NgIf,
-    UpperCasePipe,
-} from '@angular/common';
-import { ApexOptions, ChartComponent, NgApexchartsModule } from 'ng-apexcharts';
-import { Subject, takeUntil } from 'rxjs';
-import { CryptoService } from './crypto.service';
-import { FuseMediaWatcherService } from '@fuse/services/media-watcher';
-import { DateTime } from 'luxon';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatOptionModule } from '@angular/material/core';
@@ -28,6 +23,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSidenavModule } from '@angular/material/sidenav';
+import { FuseMediaWatcherService } from '@fuse/services/media-watcher';
+import { DateTime } from 'luxon';
+import { ApexOptions, ChartComponent, NgApexchartsModule } from 'ng-apexcharts';
+import { Subject, takeUntil } from 'rxjs';
+import { CryptoService } from './crypto.service';
 
 @Component({
     selector: 'crypto',
@@ -58,78 +58,12 @@ export class CryptoComponent implements OnInit, OnDestroy {
     selectedCoin = { name: 'Bitcoin', symbol: 'btc' };
     trendingCurrencies: any[] = [];
     graphicalData: any;
-    supportedCurrencies = [
-        'btc',
-        'eth',
-        'ltc',
-        'bch',
-        'bnb',
-        'eos',
-        'xrp',
-        'xlm',
-        'link',
-        'dot',
-        'yfi',
-        'usd',
-        'aed',
-        'ars',
-        'aud',
-        'bdt',
-        'bhd',
-        'bmd',
-        'brl',
-        'cad',
-        'chf',
-        'clp',
-        'cny',
-        'czk',
-        'dkk',
-        'eur',
-        'gbp',
-        'gel',
-        'hkd',
-        'huf',
-        'idr',
-        'ils',
-        'inr',
-        'jpy',
-        'krw',
-        'kwd',
-        'lkr',
-        'mmk',
-        'mxn',
-        'myr',
-        'ngn',
-        'nok',
-        'nzd',
-        'php',
-        'pkr',
-        'pln',
-        'rub',
-        'sar',
-        'sek',
-        'sgd',
-        'thb',
-        'try',
-        'twd',
-        'uah',
-        'vef',
-        'vnd',
-        'zar',
-        'xdr',
-        'xag',
-        'xau',
-        'bits',
-        'sats',
-    ];
-
+    supportedCurrencies: string[] = [];
     @ViewChild('btcChartComponent') btcChartComponent: ChartComponent;
-    appConfig: any;
     btcOptions: ApexOptions = {};
-    data: any;
     drawerMode: 'over' | 'side' = 'side';
     drawerOpened: boolean = true;
-    watchlistChartOptions: ApexOptions = {};
+
     private _unsubscribeAll: Subject<any> = new Subject<any>();
 
     /**
@@ -166,9 +100,11 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 this._changeDetectorRef.markForCheck();
             });
 
-        this.getTrendingCurrencies();
+        this.getSupportedCurrencies();
 
-        this.getGraphicalCurrency();
+        // this.getTrendingCurrencies();
+
+        // this.getGraphicalCurrency();
     }
 
     /**
@@ -231,7 +167,6 @@ export class CryptoComponent implements OnInit, OnDestroy {
             legend: {
                 show: false,
             },
-            // series: this.data.btc.price.series,
             series: this.graphicalData,
             stroke: {
                 width: 2,
@@ -306,32 +241,12 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 },
             },
         };
+    }
 
-        // Watchlist options
-        this.watchlistChartOptions = {
-            chart: {
-                animations: {
-                    enabled: false,
-                },
-                width: '100%',
-                height: '100%',
-                type: 'line',
-                sparkline: {
-                    enabled: true,
-                },
-            },
-            colors: ['#A0AEC0'],
-            stroke: {
-                width: 2,
-                curve: 'smooth',
-            },
-            tooltip: {
-                enabled: false,
-            },
-            xaxis: {
-                type: 'category',
-            },
-        };
+    private getSupportedCurrencies(): void {
+        this._cryptoService.supportedCurrencies$
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe((data) => (this.supportedCurrencies = data));
     }
 
     sendCurrency(): void {
@@ -348,24 +263,27 @@ export class CryptoComponent implements OnInit, OnDestroy {
     private getTrendingCurrencies(): void {
         this._cryptoService
             .getTrendingCurrencies(this.selectedCurrency)
-            .subscribe((res) => {
-                this.trendingCurrencies = res;
-
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe(data => {
+                this.trendingCurrencies = data;
                 this._changeDetectorRef.markForCheck();
             });
     }
 
     private getGraphicalCurrency(coinId = 'bitcoin'): void {
-        this._cryptoService.getGraphicalCurrency(coinId).subscribe((res) => {
-            this.graphicalData = [
-                {
-                    name: 'Price',
-                    data: res.prices.map(([x, y]) => ({ x, y })),
-                },
-            ];
+        this._cryptoService
+            .getGraphicalCurrency(coinId)
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe(data => {
+                this.graphicalData = [
+                    {
+                        name: 'Price',
+                        data: data.prices.map(([x, y]) => ({ x, y })),
+                    },
+                ];
 
-            this._prepareChartData();
-            this._changeDetectorRef.markForCheck();
-        });
+                this._prepareChartData();
+                this._changeDetectorRef.markForCheck();
+            });
     }
 }
