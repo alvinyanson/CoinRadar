@@ -54,8 +54,74 @@ import { MatSidenavModule } from '@angular/material/sidenav';
     ],
 })
 export class CryptoComponent implements OnInit, OnDestroy {
-    selectedCurrency = 'USD';
+    selectedCurrency = 'usd';
+    selectedCoin = { name: 'Bitcoin', symbol: 'btc' };
     trendingCurrencies: any[] = [];
+    graphicalData: any;
+    supportedCurrencies = [
+        'btc',
+        'eth',
+        'ltc',
+        'bch',
+        'bnb',
+        'eos',
+        'xrp',
+        'xlm',
+        'link',
+        'dot',
+        'yfi',
+        'usd',
+        'aed',
+        'ars',
+        'aud',
+        'bdt',
+        'bhd',
+        'bmd',
+        'brl',
+        'cad',
+        'chf',
+        'clp',
+        'cny',
+        'czk',
+        'dkk',
+        'eur',
+        'gbp',
+        'gel',
+        'hkd',
+        'huf',
+        'idr',
+        'ils',
+        'inr',
+        'jpy',
+        'krw',
+        'kwd',
+        'lkr',
+        'mmk',
+        'mxn',
+        'myr',
+        'ngn',
+        'nok',
+        'nzd',
+        'php',
+        'pkr',
+        'pln',
+        'rub',
+        'sar',
+        'sek',
+        'sgd',
+        'thb',
+        'try',
+        'twd',
+        'uah',
+        'vef',
+        'vnd',
+        'zar',
+        'xdr',
+        'xag',
+        'xau',
+        'bits',
+        'sats',
+    ];
 
     @ViewChild('btcChartComponent') btcChartComponent: ChartComponent;
     appConfig: any;
@@ -100,20 +166,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 this._changeDetectorRef.markForCheck();
             });
 
-        // Get the data
-        this._cryptoService.data$
-            .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe((data) => {
-                // Store the data
-                this.data = data;
+        this.getTrendingCurrencies();
 
-                // Prepare the chart data
-                this._prepareChartData();
-            });
-
-
-        // Get trending currency
-        this.getTrendingCurrency();
+        this.getGraphicalCurrency();
     }
 
     /**
@@ -176,7 +231,8 @@ export class CryptoComponent implements OnInit, OnDestroy {
             legend: {
                 show: false,
             },
-            series: this.data.btc.price.series,
+            // series: this.data.btc.price.series,
+            series: this.graphicalData,
             stroke: {
                 width: 2,
                 curve: 'straight',
@@ -279,20 +335,37 @@ export class CryptoComponent implements OnInit, OnDestroy {
     }
 
     sendCurrency(): void {
-        this.getTrendingCurrency();
+        this.getTrendingCurrencies();
     }
 
-    private getTrendingCurrency(): void {
+    selectCoin(coin: any): void {
+        this.graphicalData = {};
+        this.getGraphicalCurrency(coin.id);
+        this.selectedCoin.name = coin.name;
+        this.selectedCoin.symbol = coin.symbol;
+    }
+
+    private getTrendingCurrencies(): void {
         this._cryptoService
-            .getTrendingCurrency(this.selectedCurrency)
+            .getTrendingCurrencies(this.selectedCurrency)
             .subscribe((res) => {
                 this.trendingCurrencies = res;
 
-                this._prepareChartData();
-
-                console.log(this.trendingCurrencies)
-
                 this._changeDetectorRef.markForCheck();
             });
+    }
+
+    private getGraphicalCurrency(coinId = 'bitcoin'): void {
+        this._cryptoService.getGraphicalCurrency(coinId).subscribe((res) => {
+            this.graphicalData = [
+                {
+                    name: 'Price',
+                    data: res.prices.map(([x, y]) => ({ x, y })),
+                },
+            ];
+
+            this._prepareChartData();
+            this._changeDetectorRef.markForCheck();
+        });
     }
 }
