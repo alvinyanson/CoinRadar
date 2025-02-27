@@ -7,7 +7,14 @@ import {
     ViewChild,
     ViewEncapsulation,
 } from '@angular/core';
-import { CurrencyPipe, DecimalPipe, NgClass, NgFor, NgIf, UpperCasePipe } from '@angular/common';
+import {
+    CurrencyPipe,
+    DecimalPipe,
+    NgClass,
+    NgFor,
+    NgIf,
+    UpperCasePipe,
+} from '@angular/common';
 import { ApexOptions, ChartComponent, NgApexchartsModule } from 'ng-apexcharts';
 import { Subject, takeUntil } from 'rxjs';
 import { CryptoService } from './crypto.service';
@@ -47,7 +54,8 @@ import { MatSidenavModule } from '@angular/material/sidenav';
     ],
 })
 export class CryptoComponent implements OnInit, OnDestroy {
-    selectedCurrency = 'INR';
+    selectedCurrency = 'USD';
+    trendingCurrencies: any[] = [];
 
     @ViewChild('btcChartComponent') btcChartComponent: ChartComponent;
     appConfig: any;
@@ -102,6 +110,10 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 // Prepare the chart data
                 this._prepareChartData();
             });
+
+
+        // Get trending currency
+        this.getTrendingCurrency();
     }
 
     /**
@@ -266,8 +278,21 @@ export class CryptoComponent implements OnInit, OnDestroy {
         };
     }
 
+    sendCurrency(): void {
+        this.getTrendingCurrency();
+    }
 
-    sendCurrency(currency: string): void {
-        console.log(currency);
+    private getTrendingCurrency(): void {
+        this._cryptoService
+            .getTrendingCurrency(this.selectedCurrency)
+            .subscribe((res) => {
+                this.trendingCurrencies = res;
+
+                this._prepareChartData();
+
+                console.log(this.trendingCurrencies)
+
+                this._changeDetectorRef.markForCheck();
+            });
     }
 }
