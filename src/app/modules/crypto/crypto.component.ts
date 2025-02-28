@@ -54,7 +54,7 @@ import { CryptoService } from './crypto.service';
     ],
 })
 export class CryptoComponent implements OnInit, OnDestroy {
-    selectedCurrency = 'usd';
+    selectedCurrency = 'USD';
     selectedCoin = { name: 'Bitcoin', symbol: 'btc' };
     trendingCurrencies: any[] = [];
     graphicalData: any;
@@ -102,9 +102,12 @@ export class CryptoComponent implements OnInit, OnDestroy {
 
         this.getSupportedCurrencies();
 
-        // this.getTrendingCurrencies();
-
-        // this.getGraphicalCurrency();
+        this._cryptoService.selectedCurrency$
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe(() => {
+                this.getTrendingCurrencies();
+                this.getGraphicalCurrency();
+            });
     }
 
     /**
@@ -177,7 +180,7 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 theme: 'dark',
                 y: {
                     formatter: (value: number): string =>
-                        '$' + value.toFixed(2),
+                        this.getCurrencySymbol(this.selectedCurrency) + value.toFixed(2),
                 },
             },
             xaxis: {
@@ -214,9 +217,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
                     minHeight: 40,
                     hideOverlappingLabels: true,
                     formatter: (value): string =>
-                        DateTime.now()
-                            .minus({ minutes: Math.abs(parseInt(value, 10)) })
-                            .toFormat('HH:mm'),
+                        DateTime.fromMillis(+value).toFormat(
+                            'yyyy-MM-dd HH:mm:ss'
+                        ),
                     style: {
                         colors: 'currentColor',
                     },
@@ -234,7 +237,7 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 labels: {
                     minWidth: 40,
                     formatter: (value: number): string =>
-                        '$' + value.toFixed(0),
+                        this.getCurrencySymbol(this.selectedCurrency) + value.toFixed(0),
                     style: {
                         colors: 'currentColor',
                     },
@@ -246,11 +249,16 @@ export class CryptoComponent implements OnInit, OnDestroy {
     private getSupportedCurrencies(): void {
         this._cryptoService.supportedCurrencies$
             .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe((data) => (this.supportedCurrencies = data));
+            .subscribe(
+                (data) =>
+                    (this.supportedCurrencies = data.map((currency: string) =>
+                        currency.toLocaleUpperCase()
+                    ))
+            );
     }
 
     sendCurrency(): void {
-        this.getTrendingCurrencies();
+        this._cryptoService.setCurrency(this.selectedCurrency);
     }
 
     selectCoin(coin: any): void {
@@ -264,7 +272,7 @@ export class CryptoComponent implements OnInit, OnDestroy {
         this._cryptoService
             .getTrendingCurrencies(this.selectedCurrency)
             .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe(data => {
+            .subscribe((data) => {
                 this.trendingCurrencies = data;
                 this._changeDetectorRef.markForCheck();
             });
@@ -272,9 +280,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
 
     private getGraphicalCurrency(coinId = 'bitcoin'): void {
         this._cryptoService
-            .getGraphicalCurrency(coinId)
+            .getGraphicalCurrency(coinId, this.selectedCurrency)
             .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe(data => {
+            .subscribe((data) => {
                 this.graphicalData = [
                     {
                         name: 'Price',
@@ -285,5 +293,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 this._prepareChartData();
                 this._changeDetectorRef.markForCheck();
             });
+    }
+
+    private getCurrencySymbol(currency: string): string {
+        return this._cryptoService.getCurrencySymbol(currency);
     }
 }

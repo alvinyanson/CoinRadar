@@ -17,7 +17,7 @@
                             <mat-select (selectionChange)="sendCurrency()" #buySellSelect="matSelect"
                                 [(ngModel)]="selectedCurrency">
                                 <mat-option *ngFor="let currency of supportedCurrencies"
-                                    [value]="currency">{{currency | uppercase}}</mat-option>
+                                    [value]="currency">{{currency}}</mat-option>
                             </mat-select>
                         </mat-form-field>
                     </div>
@@ -26,7 +26,8 @@
 
                 <!-- Watchlist -->
                 <div class="flex flex-col flex-0">
-                    <div class="flex flex-0 items-center p-5 border-b" *ngFor="let item of trendingCurrencies">
+                    @for (item of trendingCurrencies; track item.name) {
+                    <div class="flex flex-0 items-center p-5 border-b">
                         <div (click)="selectCoin(item)" class="flex flex-col flex-auto pr-6 cursor-pointer">
                             <div class="flex items-baseline">
                                 <div class="mr-1 font-medium text-md text-secondary">{{item.name}}</div>
@@ -35,7 +36,7 @@
                             </div>
                             <div class="flex items-end mt-2">
                                 <div class="min-w-20 font-mono text-2xl tracking-tighter leading-none">
-                                    {{item.current_price | currency:'USD':'symbol':'1.2-4'}}
+                                    {{item.current_price | currency:selectedCurrency:'symbol':'1.2-4'}}
                                 </div>
                                 <mat-icon class="text-green-500 icon-size-3.5 mx-0.5 mb-px"
                                     [ngClass]="{'text-green-500': item.price_change_percentage_24h > 0, 'text-red-500': item.price_change_percentage_24h < 0}"
@@ -46,8 +47,11 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
+                    }
+                    @empty {
+                    <li>There are no items.</li>
+                    }
                 </div>
             </div>
 
@@ -65,7 +69,8 @@
                     <div class="flex flex-col flex-auto my-3 mr-6">
                         <div class="flex items-center">
                             <div class="font-medium text-2xl text-secondary mr-2">{{selectedCoin.name}}</div>
-                            <div class="font-medium text-lg text-hint tracking-wider">({{selectedCoin.symbol | uppercase}})</div>
+                            <div class="font-medium text-lg text-hint tracking-wider">({{selectedCoin.symbol |
+                                uppercase}})</div>
                         </div>
                     </div>
                 </div>

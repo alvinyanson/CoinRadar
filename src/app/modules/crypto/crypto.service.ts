@@ -70,9 +70,14 @@ export const SUPPORTED_CURRENCIES = [
 @Injectable({ providedIn: 'root' })
 export class CryptoService {
     private baseURL = 'https://api.coingecko.com/api/v3';
+    
     private _data: BehaviorSubject<any> = new BehaviorSubject(null);
+
     private _supportedCurrencies: BehaviorSubject<string[]> =
         new BehaviorSubject(SUPPORTED_CURRENCIES);
+
+    private _selectedCurrency: BehaviorSubject<string> =
+        new BehaviorSubject("USD");
 
     /**
      * Constructor
@@ -94,6 +99,10 @@ export class CryptoService {
         return this._supportedCurrencies.asObservable();
     }
 
+    get selectedCurrency$(): Observable<any> {
+        return this._selectedCurrency.asObservable();
+    }
+
     // -----------------------------------------------------------------------------------------------------
     // @ Public methods
     // -----------------------------------------------------------------------------------------------------
@@ -111,13 +120,27 @@ export class CryptoService {
 
     getTrendingCurrencies(currency: string): Observable<any> {
         return this._httpClient.get(
-            `${this.baseURL}/coins/markets?vs_currency=${currency}&order=gecko_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`
+            `${this.baseURL}/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`
         );
     }
 
-    getGraphicalCurrency(coinId: string): Observable<any> {
+    getGraphicalCurrency(coinId: string = "bitcoin", currency: string = "USD", days: string = "10"): Observable<any> {
         return this._httpClient.get(
-            `${this.baseURL}/coins/${coinId}/market_chart?vs_currency=USD&days=10`
+            `${this.baseURL}/coins/${coinId}/market_chart?vs_currency=${currency}&days=${days}`
         );
+    }
+
+
+    setCurrency(currency: string): void {
+        this._selectedCurrency.next(currency);
+    }
+
+    getCurrencySymbol(currency: string): string {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency,
+        })
+            .formatToParts()
+            .find((part) => part.type === 'currency')?.value;
     }
 }
