@@ -70,14 +70,12 @@ export const SUPPORTED_CURRENCIES = [
 @Injectable({ providedIn: 'root' })
 export class CryptoService {
     private baseURL = 'https://api.coingecko.com/api/v3';
-    
+
     private _data: BehaviorSubject<any> = new BehaviorSubject(null);
 
-    private _supportedCurrencies: BehaviorSubject<string[]> =
-        new BehaviorSubject(SUPPORTED_CURRENCIES);
-
-    private _selectedCurrency: BehaviorSubject<string> =
-        new BehaviorSubject("USD");
+    private _selectedCurrency: BehaviorSubject<string> = new BehaviorSubject(
+        'USD'
+    );
 
     /**
      * Constructor
@@ -93,10 +91,6 @@ export class CryptoService {
      */
     get data$(): Observable<any> {
         return this._data.asObservable();
-    }
-
-    get supportedCurrencies$(): Observable<any> {
-        return this._supportedCurrencies.asObservable();
     }
 
     get selectedCurrency$(): Observable<any> {
@@ -118,18 +112,21 @@ export class CryptoService {
         );
     }
 
-    getTrendingCurrencies(currency: string): Observable<any> {
+    getCoinsByMarketCap(currency: string): Observable<any> {
         return this._httpClient.get(
             `${this.baseURL}/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`
         );
     }
 
-    getGraphicalCurrency(coinId: string = "bitcoin", currency: string = "USD", days: string = "10"): Observable<any> {
+    getGraphicalDataForCoin(
+        coinId: string = 'bitcoin',
+        currency: string = 'USD',
+        days: string = '1'
+    ): Observable<any> {
         return this._httpClient.get(
             `${this.baseURL}/coins/${coinId}/market_chart?vs_currency=${currency}&days=${days}`
         );
     }
-
 
     setCurrency(currency: string): void {
         this._selectedCurrency.next(currency);
@@ -142,5 +139,19 @@ export class CryptoService {
         })
             .formatToParts()
             .find((part) => part.type === 'currency')?.value;
+    }
+
+    filterCurrencies(value: string): string[] {
+        const filterValue = value.toLowerCase();
+
+        return this.getSupportedCurrencies().filter((state) =>
+            state.toLowerCase().includes(filterValue)
+        );
+    }
+
+    getSupportedCurrencies(): string[] {
+        return SUPPORTED_CURRENCIES.slice().map((currencies) =>
+            currencies.toLocaleUpperCase()
+        );
     }
 }

@@ -1,4 +1,5 @@
 import {
+    AsyncPipe,
     CurrencyPipe,
     DecimalPipe,
     NgClass,
@@ -12,10 +13,9 @@ import {
     Component,
     OnDestroy,
     OnInit,
-    ViewChild,
     ViewEncapsulation,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatOptionModule } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,9 +25,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { FuseMediaWatcherService } from '@fuse/services/media-watcher';
 import { DateTime } from 'luxon';
-import { ApexOptions, ChartComponent, NgApexchartsModule } from 'ng-apexcharts';
-import { Subject, takeUntil } from 'rxjs';
-import { CryptoService } from './crypto.service';
+import { ApexOptions, NgApexchartsModule } from 'ng-apexcharts';
+import { map, Observable, startWith, Subject, takeUntil } from 'rxjs';
+import { CryptoService, SUPPORTED_CURRENCIES } from './crypto.service';
+import {
+    MatAutocompleteModule,
+    MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
 
 @Component({
     selector: 'crypto',
@@ -42,7 +46,10 @@ import { CryptoService } from './crypto.service';
         NgClass,
         NgApexchartsModule,
         MatFormFieldModule,
+        MatAutocompleteModule,
         MatSelectModule,
+        MatInputModule,
+        ReactiveFormsModule,
         MatOptionModule,
         NgIf,
         FormsModule,
@@ -51,39 +58,31 @@ import { CryptoService } from './crypto.service';
         UpperCasePipe,
         DecimalPipe,
         CurrencyPipe,
+        AsyncPipe,
     ],
 })
 export class CryptoComponent implements OnInit, OnDestroy {
+    btcOptions: ApexOptions = {};
+    drawerMode: 'over' | 'side' = 'side';
+    drawerOpened: boolean = true;
+
     selectedCurrency = 'USD';
     selectedCoin = { name: 'Bitcoin', symbol: 'btc' };
     trendingCurrencies: any[] = [];
     graphicalData: any;
     supportedCurrencies: string[] = [];
-    @ViewChild('btcChartComponent') btcChartComponent: ChartComponent;
-    btcOptions: ApexOptions = {};
-    drawerMode: 'over' | 'side' = 'side';
-    drawerOpened: boolean = true;
+    currencyCtrl = new FormControl('USD');
+    filteredCurrencies: Observable<string[]>;
 
     private _unsubscribeAll: Subject<any> = new Subject<any>();
 
-    /**
-     * Constructor
-     */
     constructor(
         private _cryptoService: CryptoService,
         private _changeDetectorRef: ChangeDetectorRef,
         private _fuseMediaWatcherService: FuseMediaWatcherService
     ) {}
 
-    // -----------------------------------------------------------------------------------------------------
-    // @ Lifecycle hooks
-    // -----------------------------------------------------------------------------------------------------
-
-    /**
-     * On init
-     */
     ngOnInit(): void {
-        // Subscribe to media changes
         this._fuseMediaWatcherService.onMediaChange$
             .pipe(takeUntil(this._unsubscribeAll))
             .subscribe(({ matchingAliases }) => {
@@ -100,34 +99,49 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 this._changeDetectorRef.markForCheck();
             });
 
-        this.getSupportedCurrencies();
+        this.onSearchCurrency();
 
-        this._cryptoService.selectedCurrency$
-            .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe(() => {
-                this.getTrendingCurrencies();
-                this.getGraphicalCurrency();
-            });
+        this.onSelectCurrency();
     }
 
-    /**
-     * On destroy
-     */
+    currencySelected(item: MatAutocompleteSelectedEvent): void {
+        this.selectedCurrency = item.option.value;
+        this._cryptoService.setCurrency(this.selectedCurrency);
+    }
+
+    selectCoin(coin: any): void {
+        this.graphicalData = {};
+        this.getGraphicalDataForCoin(coin.id);
+        this.selectedCoin.name = coin.name;
+        this.selectedCoin.symbol = coin.symbol;
+    }
+
     ngOnDestroy(): void {
         // Unsubscribe from all subscriptions
         this._unsubscribeAll.next(null);
         this._unsubscribeAll.complete();
     }
 
-    // -----------------------------------------------------------------------------------------------------
-    // @ Private methods
-    // -----------------------------------------------------------------------------------------------------
+    private onSelectCurrency(): void {
+        this._cryptoService.selectedCurrency$
+            .pipe(takeUntil(this._unsubscribeAll))
+            .subscribe(() => {
+                this.getCoinsByMarketCap();
+                this.getGraphicalDataForCoin();
+            });
+    }
 
-    /**
-     * Prepare the chart data from the data
-     *
-     * @private
-     */
+    private onSearchCurrency(): void {
+        this.filteredCurrencies = this.currencyCtrl.valueChanges.pipe(
+            startWith(''),
+            map((currency) =>
+                currency
+                    ? this._cryptoService.filterCurrencies(currency)
+                    : this._cryptoService.getSupportedCurrencies()
+            )
+        );
+    }
+
     private _prepareChartData(): void {
         // BTC
         this.btcOptions = {
@@ -180,7 +194,8 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 theme: 'dark',
                 y: {
                     formatter: (value: number): string =>
-                        this.getCurrencySymbol(this.selectedCurrency) + value.toFixed(2),
+                        this.getCurrencySymbol(this.selectedCurrency) +
+                        value.toFixed(2),
                 },
             },
             xaxis: {
@@ -237,7 +252,8 @@ export class CryptoComponent implements OnInit, OnDestroy {
                 labels: {
                     minWidth: 40,
                     formatter: (value: number): string =>
-                        this.getCurrencySymbol(this.selectedCurrency) + value.toFixed(0),
+                        this.getCurrencySymbol(this.selectedCurrency) +
+                        value.toFixed(0),
                     style: {
                         colors: 'currentColor',
                     },
@@ -246,31 +262,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
         };
     }
 
-    private getSupportedCurrencies(): void {
-        this._cryptoService.supportedCurrencies$
-            .pipe(takeUntil(this._unsubscribeAll))
-            .subscribe(
-                (data) =>
-                    (this.supportedCurrencies = data.map((currency: string) =>
-                        currency.toLocaleUpperCase()
-                    ))
-            );
-    }
-
-    sendCurrency(): void {
-        this._cryptoService.setCurrency(this.selectedCurrency);
-    }
-
-    selectCoin(coin: any): void {
-        this.graphicalData = {};
-        this.getGraphicalCurrency(coin.id);
-        this.selectedCoin.name = coin.name;
-        this.selectedCoin.symbol = coin.symbol;
-    }
-
-    private getTrendingCurrencies(): void {
+    private getCoinsByMarketCap(): void {
         this._cryptoService
-            .getTrendingCurrencies(this.selectedCurrency)
+            .getCoinsByMarketCap(this.selectedCurrency)
             .pipe(takeUntil(this._unsubscribeAll))
             .subscribe((data) => {
                 this.trendingCurrencies = data;
@@ -278,9 +272,9 @@ export class CryptoComponent implements OnInit, OnDestroy {
             });
     }
 
-    private getGraphicalCurrency(coinId = 'bitcoin'): void {
+    private getGraphicalDataForCoin(coinId = 'bitcoin'): void {
         this._cryptoService
-            .getGraphicalCurrency(coinId, this.selectedCurrency)
+            .getGraphicalDataForCoin(coinId, this.selectedCurrency)
             .pipe(takeUntil(this._unsubscribeAll))
             .subscribe((data) => {
                 this.graphicalData = [
